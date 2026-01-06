@@ -5,7 +5,7 @@ import plotly.graph_objects as go
 import numpy as np
 
 # --- 1. CORE SETUP ---
-st.set_page_config(page_title='Media Intelligence', page_icon='📊', layout='wide', initial_sidebar_state='collapsed)
+st.set_page_config(page_title='Media Intelligence', page_icon='📊', layout='wide', initial_sidebar_state='collapsed')
 
 st.markdown('''
     <style>
