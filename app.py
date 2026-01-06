@@ -5,7 +5,7 @@ import plotly.graph_objects as go
 import numpy as np
 
 # --- 1. CORE SETUP ---
-st.set_page_config(page_title='Media Intelligence', page_icon='📊', layout='wide')
+st.set_page_config(page_title='Media Intelligence', page_icon='📊', layout='wide', initial_sidebar_state='collapsed)
 
 st.markdown('''
     <style>
@@ -41,17 +41,17 @@ def load_and_prep():
 
 df = load_and_prep()
 
-# --- 3. SIDEBAR (STRATEGIC FILTERS) ---
+# --- 3. SIDEBAR (FILTERS) ---
 with st.sidebar:
-    st.title("Strategic Filters")
+    st.title("Filter")
     # Using the primary Date column for the slider
     min_date = df['Date'].min().date()
     max_date = df['Date'].max().date()
     
-    date_range = st.date_input("Analysis Window", [min_date, max_date])
+    date_range = st.date_input("Time Frame", [min_date, max_date])
     
     if len(date_range) == 2:
-        selected_Clusters = st.multiselect("Strategic Clusters", sorted(df['Cluster'].unique()), default=df['Cluster'].unique())
+        selected_Clusters = st.multiselect("Topic Clusters", sorted(df['Cluster'].unique()), default=df['Cluster'].unique())
         selected_sources = st.multiselect("Sources", sorted(df['Source'].unique()), default=df['Source'].unique())
 
         mask = (df['Cluster'].isin(selected_Clusters)) & \
