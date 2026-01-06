@@ -63,11 +63,11 @@ with st.sidebar:
         st.stop()
 
 # --- 4. DASHBOARD TABS ---
-tab_exec, tab_strat, tab_matrix, tab_source, tab_pulse, tab_audit = st.tabs([
-    "Executive Summary", "Strategic Portfolio", "Intelligence Matrix", "Source Intelligence", "Narrative Pulse", "Evidence Lookup"
+tab_exec, tab_matrix, tab_source, tab_pulse, tab_audit = st.tabs([
+    "Executive Summary", "Intelligence Matrix", "Source Intelligence", "Narrative Pulse", "Evidence Lookup"
 ])
 
-# --- TAB 0: EXECUTIVE SUMMARY ---
+# --- TAB 1: EXECUTIVE SUMMARY ---
 with tab_exec:
     st.markdown('<div class="status-box"><b>Executive Summary:</b> High-level situational awareness for leadership.</div>', unsafe_allow_html=True)
     c1, c2, c3, c4 = st.columns(4)
@@ -79,155 +79,6 @@ with tab_exec:
     st.markdown('''<div class="analyst-note"><b>What this shows:</b> A compressed snapshot of scale and diversity. Use this to quickly assess whether narrative space is broad (many sources/topics) or concentrated.</div>''', unsafe_allow_html=True)
     st.divider()
 
-    st.markdown('<div class="section-header">Media Attention Trend — Executive View</div>', unsafe_allow_html=True)
-
-    # Weekly aggregation for executive clarity
-    ts_exec = (
-        f_df
-        .groupby(pd.Grouper(key='Date', freq='W'))
-        .size()
-        .reset_index(name='Articles')
-        .sort_values('Date')
-    )
-
-    if not ts_exec.empty:
-        current = ts_exec.iloc[-1]['Articles']
-        avg = ts_exec['Articles'].mean()
-        prev = ts_exec.iloc[-2]['Articles'] if len(ts_exec) > 1 else np.nan
-        wow = ((current - prev) / prev * 100) if prev and not np.isnan(prev) else 0
-        status = 'Spike Detected' if current > avg * 1.5 else 'Normal Range'
-
-        k1, k2, k3 = st.columns(3)
-        k1.metric('This Week', int(current))
-        k2.metric('vs Last Week', f"{wow:+.1f}%")
-        k3.metric('Attention Status', status)
-
-        fig_exec = go.Figure()
-        fig_exec.add_trace(go.Scatter(
-            x=ts_exec['Date'], y=ts_exec['Articles'],
-            mode='lines+markers',
-            line=dict(shape='spline', width=3),
-            marker=dict(size=6),
-            name='Weekly Articles'
-        ))
-
-        fig_exec.add_hline(
-            y=avg,
-            line_dash='dot',
-            line_color='gray',
-            annotation_text='Long-term average',
-            annotation_position='top left'
-        )
-
-        fig_exec.update_layout(
-            template='plotly_dark',
-            height=320,
-            xaxis_title=None,
-            yaxis_title='Articles per week',
-            showlegend=False
-        )
-
-        st.plotly_chart(fig_exec, use_container_width=True)
-
-        st.markdown('''
-            <div class="analyst-note">
-                <b>What this shows:</b> A simple view of whether overall media attention is increasing, stable, or spiking.<br><br>
-                <b>How to interpret:</b>
-                <ul>
-                    <li>Upward movement indicates growing public and media focus.</li>
-                    <li>Flat patterns suggest stable attention.</li>
-                    <li>Sudden jumps typically reflect announcements, incidents, or major events.</li>
-                </ul>
-                <b>Why it matters:</b> Sustained increases signal strategic relevance. Short spikes may require leadership awareness or communication response.
-            </div>
-        ''', unsafe_allow_html=True)
-    else:
-        st.info('No data available to render executive trend.')
-
-    st.divider()
-
-    # Build daily time series aggregated across all sources
-    ts_total = (
-        f_df
-        .groupby(pd.Grouper(key='Date', freq='D'))
-        .size()
-        .reset_index(name='Articles')
-    )
-
-    # Ensure continuous date index across the analysis window
-    if not ts_total.empty:
-        full_idx = pd.date_range(start=ts_total['Date'].min(), end=ts_total['Date'].max(), freq='D')
-        ts_total = ts_total.set_index('Date').reindex(full_idx, fill_value=0).rename_axis('Date').reset_index()
-
-        # Compute statistics
-        overall_mean = ts_total['Articles'].mean()
-        overall_std = ts_total['Articles'].std()
-        ts_total['7d_mean'] = ts_total['Articles'].rolling(window=7, min_periods=1, center=True).mean()
-
-        # Define anomalies: simple threshold (mean + 2*std)
-        threshold = overall_mean + 2 * (overall_std if not np.isnan(overall_std) else 0)
-        ts_total['anomaly'] = ts_total['Articles'] > threshold
-
-        # Build the spline time series with rolling mean and a horizontal mean line
-        fig_ts = go.Figure()
-
-        # Daily articles (spline)
-        fig_ts.add_trace(go.Scatter(
-            x=ts_total['Date'], y=ts_total['Articles'],
-            mode='lines+markers', name='Daily Articles',
-            line=dict(shape='spline', width=1.5),
-            marker=dict(size=6),
-            hovertemplate='%{x|%Y-%m-%d}: %{y} articles'
-        ))
-
-        # 7-day rolling mean (spline)
-        fig_ts.add_trace(go.Scatter(
-            x=ts_total['Date'], y=ts_total['7d_mean'],
-            mode='lines', name='7-day rolling mean',
-            line=dict(shape='spline', width=3, dash='dash')
-        ))
-
-        # Overall mean horizontal line (as a shape)
-        fig_ts.add_hline(y=overall_mean, line_dash='dot', line_color='yellow', annotation_text=f'Overall mean: {overall_mean:.2f}', annotation_position='top left')
-
-        # Anomaly markers
-        anomalies = ts_total[ts_total['anomaly']]
-        if not anomalies.empty:
-            fig_ts.add_trace(go.Scatter(
-                x=anomalies['Date'], y=anomalies['Articles'],
-                mode='markers', name='Anomaly (>{:.1f})'.format(threshold),
-                marker=dict(size=10, symbol='diamond', color='red'),
-                hovertemplate='%{x|%Y-%m-%d}: %{y} articles (anomaly)'
-            ))
-
-        fig_ts.update_layout(template='plotly_dark', height=450, xaxis_title='Date', yaxis_title='Article count', legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='right', x=1))
-        fig_ts.update_xaxes(rangeslider_visible=True)
-
-        st.plotly_chart(fig_ts, use_container_width=True)
-
-        st.markdown('''<div class="analyst-note"><b>How to interpret:</b> The dashed line is a 7-day rolling average (spline). The dotted horizontal line is the overall mean. Red diamonds mark days that exceed mean + 2×std (simple anomaly heuristic).</div>''', unsafe_allow_html=True)
-    else:
-        st.info('No data available in the selected window to render the time series.')
-
-    st.divider()
-
-    if not f_df.empty:
-        top_source = f_df['Source'].value_counts().idxmax()
-        top_cluster = f_df['Cluster'].value_counts().idxmax()
-    else:
-        top_source = "N/A"
-        top_cluster = "N/A"
-
-    st.markdown(f'''
-    <div class="exec-box">
-    • Dominant media source: <b>{top_source}</b><br>
-    • Most saturated strategic cluster: <b>{top_cluster}</b><br>
-    • Use subsequent tabs to diagnose <i>why</i> these dominate and whether dominance is stable or volatile.
-    </div>
-    ''', unsafe_allow_html=True)
-
-# --- TAB 1: STRATEGIC PORTFOLIO ---
-with tab_strat:
     st.markdown('<div class="status-box"><b>Strategic Portfolio:</b> Assessing the structural ownership of narratives.</div>', unsafe_allow_html=True)
     
     st.markdown('<div class="section-header">Narrative Hierarchy (Cluster Segmentation)</div>', unsafe_allow_html=True)
